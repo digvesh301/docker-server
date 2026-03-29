@@ -2,13 +2,11 @@ version: "3.8"
 
 services:
   fronted:
-    build: ./frontend
+    image: gcr.io/docker-server/fronted:latest
     container_name: fronted 
 
   backend:
-    build: 
-        context: ./backend
-        dockerfile: Dockerfile
+    image: gcr.io/docker-server/backend:latest
     container_name: backend  
     ports:
       - "3000:3000"
