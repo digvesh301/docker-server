@@ -35,14 +35,23 @@ jobs:
           gcloud auth configure-docker --quiet
 
       # 🐳 Build Docker Image
-      - name: Build Docker Image
+      - name: Build Docker Frontend Image
         run: |
-          docker build -t gcr.io/project-57b481f9-2513-4a16-ae4/app:latest .
+          docker build -t gcr.io/project-57b481f9-2513-4a16-ae4/app:latest ./frontend
 
       # 📤 Push Image
-      - name: Push Image
+      - name: Push Frontend Image
         run: |
-          docker push gcr.io/project-57b481f9-2513-4a16-ae4/app:latest
+          docker push gcr.io/project-57b481f9-2513-4a16-ae4/frontend:latest
+
+      - name: Build Docker Backend Image
+        run: |
+          docker build -t gcr.io/project-57b481f9-2513-4a16-ae4/app:latest ./backend
+
+      # 📤 Push Image
+      - name: Push Backend Image
+        run: |
+          docker push gcr.io/project-57b481f9-2513-4a16-ae4/backend:latest
 
       # 🚀 Deploy to VM (same as your setup)
       - name: Deploy to VM
@@ -52,6 +61,7 @@ jobs:
           username: ${{ secrets.GCP_SSH_USER }}
           key: ${{ secrets.GCP_SSH_KEY }}
           script: |
-            docker pull gcr.io/project-57b481f9-2513-4a16-ae4/app:latest
+            docker pull gcr.io/project-57b481f9-2513-4a16-ae4/frontend:latest
+            docker pull gcr.io/project-57b481f9-2513-4a16-ae4/backend:latest
             docker-compose down
             docker-compose up -d
