@@ -5,6 +5,11 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  id-token: write   # 🔥 REQUIRED
+
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -13,18 +18,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Login to GCR
-        run: |
-          echo ${{ secrets.GCP_SERVICE_KEY }} | docker login -u _json_key --password-stdin https://gcr.io
+      # 🔐 Authenticate using Workload Identity
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/943086588341/locations/global/workloadIdentityPools/docker-server-git/providers/github
+          service_account: github-cicd@project-57b481f9-2513-4a16-ae4.iam.gserviceaccount.com
 
+      # 🛠 Setup gcloud
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      # 🔑 Configure Docker auth
+      - name: Configure Docker
+        run: |
+          gcloud auth configure-docker --quiet
+
+      # 🐳 Build Docker Image
       - name: Build Docker Image
         run: |
-          docker build -t gcr.io/docker-server/app:latest .
+          docker build -t gcr.io/project-57b481f9-2513-4a16-ae4/app:latest .
 
+      # 📤 Push Image
       - name: Push Image
         run: |
-          docker push gcr.io/docker-server/app:latest
+          docker push gcr.io/project-57b481f9-2513-4a16-ae4/app:latest
 
+      # 🚀 Deploy to VM (same as your setup)
       - name: Deploy to VM
         uses: appleboy/ssh-action@v0.1.6
         with:
@@ -32,6 +52,6 @@ jobs:
           username: ${{ secrets.GCP_SSH_USER }}
           key: ${{ secrets.GCP_SSH_KEY }}
           script: |
-            docker pull gcr.io/docker-server/app:latest
+            docker pull gcr.io/project-57b481f9-2513-4a16-ae4/app:latest
             docker-compose down
             docker-compose up -d
