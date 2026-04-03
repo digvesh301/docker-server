@@ -7,21 +7,25 @@ on:
 
 permissions:
   contents: read
-  id-token: write   # 🔥 REQUIRED
-
+  id-token: write
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      PROJECT_ID: project-57b481f9-2513-4a16-ae4
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
       # 🔐 Authenticate using Workload Identity
-      - name: Authenticate to GCP
+      - id: 'auth'
+        name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
+          # Note: Added 'token_format: access_token' to help Docker auth
+          token_format: 'access_token' 
           workload_identity_provider: projects/943086588341/locations/global/workloadIdentityPools/docker-server-git/providers/github
           service_account: github-cicd@project-57b481f9-2513-4a16-ae4.iam.gserviceaccount.com
 
@@ -29,31 +33,26 @@ jobs:
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      # 🔑 Configure Docker auth
+      # 🔑 Configure Docker auth (Specific to GCR)
       - name: Configure Docker
         run: |
-          gcloud auth configure-docker --quiet
+          gcloud auth configure-docker gcr.io --quiet
 
-      # 🐳 Build Docker Image
-      - name: Build Docker Frontend Image
+      # 🐳 Build & Push Frontend
+      - name: Build and Push Frontend
         run: |
-          docker build -t gcr.io/project-57b481f9-2513-4a16-ae4/app:latest ./frontend
+          # FIX: Tag name must match the push name exactly
+          docker build -t gcr.io/${{ env.PROJECT_ID }}/frontend:latest ./frontend
+          docker push gcr.io/${{ env.PROJECT_ID }}/frontend:latest
 
-      # 📤 Push Image
-      - name: Push Frontend Image
+      # 🐳 Build & Push Backend
+      - name: Build and Push Backend
         run: |
-          docker push gcr.io/project-57b481f9-2513-4a16-ae4/frontend:latest
+          # FIX: Tag name must match the push name exactly
+          docker build -t gcr.io/${{ env.PROJECT_ID }}/backend:latest ./backend
+          docker push gcr.io/${{ env.PROJECT_ID }}/backend:latest
 
-      - name: Build Docker Backend Image
-        run: |
-          docker build -t gcr.io/project-57b481f9-2513-4a16-ae4/app:latest ./backend
-
-      # 📤 Push Image
-      - name: Push Backend Image
-        run: |
-          docker push gcr.io/project-57b481f9-2513-4a16-ae4/backend:latest
-
-      # 🚀 Deploy to VM (same as your setup)
+      # 🚀 Deploy to VM
       - name: Deploy to VM
         uses: appleboy/ssh-action@v0.1.6
         with:
@@ -61,7 +60,9 @@ jobs:
           username: ${{ secrets.GCP_SSH_USER }}
           key: ${{ secrets.GCP_SSH_KEY }}
           script: |
+            # Ensure the VM is also authenticated to GCR to pull images
+            gcloud auth configure-docker gcr.io --quiet
             docker pull gcr.io/project-57b481f9-2513-4a16-ae4/frontend:latest
             docker pull gcr.io/project-57b481f9-2513-4a16-ae4/backend:latest
-            docker-compose down
+            # If your docker-compose.yml uses these GCR tags, this will work:
             docker-compose up -d
