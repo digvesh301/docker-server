@@ -59,6 +59,7 @@ jobs:
           host: ${{ secrets.GCP_SSH_HOST }}
           username: ${{ secrets.GCP_SSH_USER }}
           key: ${{ secrets.GCP_SSH_KEY }}
+          passphrase: ${{ secrets.GCP_SSH_PASSPHRASE }}
           script: |
             # Ensure the VM is also authenticated to GCR to pull images
             gcloud auth configure-docker gcr.io --quiet
