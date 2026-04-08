@@ -46,7 +46,7 @@ jobs:
           docker push gcr.io/${{ env.PROJECT_ID }}/frontend:latest
 
       # 🐳 Build & Push Backend
-      - name: Build and Push Backend
+      - name: Build and Push Backend 
         run: |
           # FIX: Tag name must match the push name exactly
           docker build -t gcr.io/${{ env.PROJECT_ID }}/backend:latest ./backend
